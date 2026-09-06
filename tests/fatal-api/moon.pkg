@@ -1,0 +1,5 @@
+import {
+  "moonbitlang/cvc5",
+} for "test"
+
+supported_targets = "native"

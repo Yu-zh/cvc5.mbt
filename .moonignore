@@ -1,0 +1,9 @@
+.DS_Store
+_build/
+target/
+.mooncakes/
+.repos/
+.cvc5/
+tests/
+scripts/test-c-api-errors.js
+AGENTS.md

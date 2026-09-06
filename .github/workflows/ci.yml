@@ -1,0 +1,45 @@
+name: Native binding
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Cache cvc5
+        uses: actions/cache@v4
+        with:
+          path: .cvc5
+          key: cvc5-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build.js') }}
+      - name: Check and test
+        run: |
+          moon version --all
+          moon check --deny-warn
+          moon test
+          moon test --release
+          node scripts/test-c-api-errors.js
+          moon run cmd/main
+          moon -C tests/consumer run .
+          moon -C tests/consumer run . --release
+      - name: Check generated interfaces and formatting
+        run: |
+          moon info
+          moon fmt
+          git diff --exit-code

@@ -1,0 +1,459 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/cvc5"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror Cvc5Error {
+  ApiError(String)
+} derive(Eq, @debug.Debug)
+pub fn Cvc5Error::equal(Self, Self) -> Bool
+pub fn Cvc5Error::not_equal(Self, Self) -> Bool
+pub fn Cvc5Error::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum Kind {
+  InternalKind
+  UndefinedKind
+  NullTerm
+  UninterpretedSortValue
+  Equal
+  Distinct
+  Constant
+  Variable
+  Skolem
+  Sexpr
+  Lambda
+  Witness
+  ConstBoolean
+  Not
+  And
+  Implies
+  Or
+  Xor
+  Ite
+  ApplyUf
+  CardinalityConstraint
+  HoApply
+  Add
+  Mult
+  Iand
+  Piand
+  Pow2
+  Log2
+  Sub
+  Neg
+  Division
+  DivisionTotal
+  IntsDivision
+  IntsDivisionTotal
+  IntsModulus
+  IntsModulusTotal
+  Abs
+  Pow
+  Exponential
+  Sine
+  Cosine
+  Tangent
+  Cosecant
+  Secant
+  Cotangent
+  Arcsine
+  Arccosine
+  Arctangent
+  Arccosecant
+  Arcsecant
+  Arccotangent
+  Sqrt
+  Divisible
+  ConstRational
+  ConstInteger
+  Lt
+  Leq
+  Gt
+  Geq
+  IsInteger
+  ToInteger
+  ToReal
+  Pi
+  ConstBitVector
+  BitVectorConcat
+  BitVectorAnd
+  BitVectorOr
+  BitVectorXor
+  BitVectorNot
+  BitVectorNand
+  BitVectorNor
+  BitVectorXnor
+  BitVectorComp
+  BitVectorMult
+  BitVectorAdd
+  BitVectorSub
+  BitVectorNeg
+  BitVectorUdiv
+  BitVectorUrem
+  BitVectorSdiv
+  BitVectorSrem
+  BitVectorSmod
+  BitVectorShl
+  BitVectorLshr
+  BitVectorAshr
+  BitVectorUlt
+  BitVectorUle
+  BitVectorUgt
+  BitVectorUge
+  BitVectorSlt
+  BitVectorSle
+  BitVectorSgt
+  BitVectorSge
+  BitVectorUltbv
+  BitVectorSltbv
+  BitVectorIte
+  BitVectorRedor
+  BitVectorRedand
+  BitVectorNego
+  BitVectorUaddo
+  BitVectorSaddo
+  BitVectorUmulo
+  BitVectorSmulo
+  BitVectorUsubo
+  BitVectorSsubo
+  BitVectorSdivo
+  BitVectorExtract
+  BitVectorRepeat
+  BitVectorZeroExtend
+  BitVectorSignExtend
+  BitVectorRotateLeft
+  BitVectorRotateRight
+  IntToBitVector
+  BitVectorToNat
+  BitVectorUbvToInt
+  BitVectorSbvToInt
+  BitVectorFromBools
+  BitVectorBit
+  ConstFiniteField
+  FiniteFieldNeg
+  FiniteFieldAdd
+  FiniteFieldBitsum
+  FiniteFieldMult
+  ConstFloatingPoint
+  ConstRoundingmode
+  FloatingPointFp
+  FloatingPointEq
+  FloatingPointAbs
+  FloatingPointNeg
+  FloatingPointAdd
+  FloatingPointSub
+  FloatingPointMult
+  FloatingPointDiv
+  FloatingPointFma
+  FloatingPointSqrt
+  FloatingPointRem
+  FloatingPointRti
+  FloatingPointMin
+  FloatingPointMax
+  FloatingPointLeq
+  FloatingPointLt
+  FloatingPointGeq
+  FloatingPointGt
+  FloatingPointIsNormal
+  FloatingPointIsSubnormal
+  FloatingPointIsZero
+  FloatingPointIsInf
+  FloatingPointIsNan
+  FloatingPointIsNeg
+  FloatingPointIsPos
+  FloatingPointToFpFromIeeeBv
+  FloatingPointToFpFromFp
+  FloatingPointToFpFromReal
+  FloatingPointToFpFromSbv
+  FloatingPointToFpFromUbv
+  FloatingPointToUbv
+  FloatingPointToSbv
+  FloatingPointToReal
+  Select
+  Store
+  ConstArray
+  EqRange
+  ApplyConstructor
+  ApplySelector
+  ApplyTester
+  ApplyUpdater
+  Match
+  MatchCase
+  MatchBindCase
+  TupleProject
+  NullableLift
+  SepNil
+  SepEmp
+  SepPto
+  SepStar
+  SepWand
+  SetEmpty
+  SetUnion
+  SetInter
+  SetMinus
+  SetSubset
+  SetMember
+  SetSingleton
+  SetInsert
+  SetCard
+  SetComplement
+  SetUniverse
+  SetComprehension
+  SetChoose
+  SetIsEmpty
+  SetIsSingleton
+  SetMap
+  SetFilter
+  SetAll
+  SetSome
+  SetFold
+  RelationJoin
+  RelationTableJoin
+  RelationProduct
+  RelationTranspose
+  RelationTclosure
+  RelationJoinImage
+  RelationIden
+  RelationGroup
+  RelationAggregate
+  RelationProject
+  BagEmpty
+  BagUnionMax
+  BagUnionDisjoint
+  BagInterMin
+  BagDifferenceSubtract
+  BagDifferenceRemove
+  BagSubbag
+  BagCount
+  BagMember
+  BagSetof
+  BagMake
+  BagCard
+  BagChoose
+  BagMap
+  BagFilter
+  BagAll
+  BagSome
+  BagFold
+  BagPartition
+  TableProduct
+  TableProject
+  TableAggregate
+  TableJoin
+  TableGroup
+  StringConcat
+  StringInRegexp
+  StringLength
+  StringSubstr
+  StringUpdate
+  StringCharat
+  StringContains
+  StringIndexof
+  StringIndexofRe
+  StringReplace
+  StringReplaceAll
+  StringReplaceRe
+  StringReplaceReAll
+  StringToLower
+  StringToUpper
+  StringRev
+  StringToCode
+  StringFromCode
+  StringLt
+  StringLeq
+  StringPrefix
+  StringSuffix
+  StringIsDigit
+  StringFromInt
+  StringToInt
+  ConstString
+  StringToRegexp
+  RegexpConcat
+  RegexpUnion
+  RegexpInter
+  RegexpDiff
+  RegexpStar
+  RegexpPlus
+  RegexpOpt
+  RegexpRange
+  RegexpRepeat
+  RegexpLoop
+  RegexpNone
+  RegexpAll
+  RegexpAllchar
+  RegexpComplement
+  SeqConcat
+  SeqLength
+  SeqExtract
+  SeqUpdate
+  SeqAt
+  SeqContains
+  SeqIndexof
+  SeqReplace
+  SeqReplaceAll
+  SeqRev
+  SeqPrefix
+  SeqSuffix
+  ConstSequence
+  SeqUnit
+  SeqNth
+  Forall
+  Exists
+  VariableList
+  InstPattern
+  InstNoPattern
+  InstPool
+  InstAddToPool
+  SkolemAddToPool
+  InstAttribute
+  InstPatternList
+} derive(Eq, @debug.Debug)
+pub fn Kind::equal(Self, Self) -> Bool
+pub fn Kind::not_equal(Self, Self) -> Bool
+pub fn Kind::to_repr(Self) -> @debug.Repr
+
+type Native
+
+pub struct Op {
+  // private fields
+}
+pub fn Op::equal(Self, Self) -> Bool
+pub fn Op::kind(Self) -> Kind
+pub fn Op::not_equal(Self, Self) -> Bool
+pub fn Op::output(Self, &Logger) -> Unit
+pub fn Op::to_string(Self) -> String
+pub impl Eq for Op
+pub impl Show for Op
+
+pub(all) enum SatResult {
+  Sat
+  Unsat
+  Unknown(String)
+} derive(Eq, @debug.Debug)
+pub fn SatResult::equal(Self, Self) -> Bool
+pub fn SatResult::is_sat(Self) -> Bool
+pub fn SatResult::is_unknown(Self) -> Bool
+pub fn SatResult::is_unsat(Self) -> Bool
+pub fn SatResult::not_equal(Self, Self) -> Bool
+pub fn SatResult::to_repr(Self) -> @debug.Repr
+
+pub struct Solver {
+  // private fields
+}
+pub fn Solver::assert_formula(Self, Term) -> Unit raise Cvc5Error
+pub fn Solver::check_sat(Self) -> SatResult raise Cvc5Error
+pub fn Solver::check_sat_assuming(Self, ArrayView[Term]) -> SatResult raise Cvc5Error
+pub fn Solver::get_assertions(Self) -> Array[Term] raise Cvc5Error
+pub fn Solver::get_option(Self, String) -> String raise Cvc5Error
+pub fn Solver::get_unsat_core(Self) -> Array[Term] raise Cvc5Error
+pub fn Solver::get_value(Self, Term) -> Term raise Cvc5Error
+pub fn Solver::get_values(Self, ArrayView[Term]) -> Array[Term] raise Cvc5Error
+pub fn Solver::new(TermManager) -> Self raise Cvc5Error
+pub fn Solver::pop(Self, levels? : UInt) -> Unit raise Cvc5Error
+pub fn Solver::push(Self, levels? : UInt) -> Unit raise Cvc5Error
+pub fn Solver::reset_assertions(Self) -> Unit raise Cvc5Error
+pub fn Solver::set_logic(Self, String) -> Unit raise Cvc5Error
+pub fn Solver::set_option(Self, String, String) -> Unit raise Cvc5Error
+pub fn Solver::simplify(Self, Term, apply_substitutions? : Bool) -> Term raise Cvc5Error
+pub fn Solver::version(Self) -> String raise Cvc5Error
+
+pub struct Sort {
+  // private fields
+}
+pub fn Sort::bit_vector_size(Self) -> UInt raise Cvc5Error
+pub fn Sort::equal(Self, Self) -> Bool
+pub fn Sort::kind(Self) -> SortKind
+pub fn Sort::not_equal(Self, Self) -> Bool
+pub fn Sort::output(Self, &Logger) -> Unit
+pub fn Sort::to_string(Self) -> String
+pub impl Eq for Sort
+pub impl Show for Sort
+
+pub(all) enum SortKind {
+  InternalSortKind
+  UndefinedSortKind
+  NullSort
+  AbstractSort
+  ArraySort
+  BagSort
+  BooleanSort
+  BitVectorSort
+  DatatypeSort
+  FiniteFieldSort
+  FloatingPointSort
+  FunctionSort
+  IntegerSort
+  RealSort
+  ReglanSort
+  RoundingmodeSort
+  SequenceSort
+  SetSort
+  StringSort
+  TupleSort
+  NullableSort
+  UninterpretedSort
+} derive(Eq, @debug.Debug)
+pub fn SortKind::equal(Self, Self) -> Bool
+pub fn SortKind::not_equal(Self, Self) -> Bool
+pub fn SortKind::to_repr(Self) -> @debug.Repr
+
+pub struct Term {
+  // private fields
+}
+pub fn Term::children(Self) -> Array[Self] raise Cvc5Error
+pub fn Term::equal(Self, Self) -> Bool
+pub fn Term::get_bit_vector_value(Self, base? : UInt) -> String raise Cvc5Error
+pub fn Term::get_boolean_value(Self) -> Bool raise Cvc5Error
+pub fn Term::get_int64_value(Self) -> Int64 raise Cvc5Error
+pub fn Term::get_integer_value(Self) -> String raise Cvc5Error
+pub fn Term::get_real_value(Self) -> String raise Cvc5Error
+pub fn Term::get_string_value(Self) -> String raise Cvc5Error
+pub fn Term::kind(Self) -> Kind
+pub fn Term::not_equal(Self, Self) -> Bool
+pub fn Term::output(Self, &Logger) -> Unit
+pub fn Term::sort(Self) -> Sort raise Cvc5Error
+pub fn Term::substitute(Self, ArrayView[Self], ArrayView[Self]) -> Self raise Cvc5Error
+pub fn Term::symbol(Self) -> String? raise Cvc5Error
+pub fn Term::to_string(Self) -> String
+pub impl Eq for Term
+pub impl Show for Term
+
+pub struct TermManager {
+  // private fields
+}
+pub fn TermManager::array_sort(Self, Sort, Sort) -> Sort raise Cvc5Error
+pub fn TermManager::bit_vector_sort(Self, UInt) -> Sort raise Cvc5Error
+pub fn TermManager::boolean_sort(Self) -> Sort raise Cvc5Error
+pub fn TermManager::function_sort(Self, ArrayView[Sort], Sort) -> Sort raise Cvc5Error
+pub fn TermManager::integer_sort(Self) -> Sort raise Cvc5Error
+pub fn TermManager::mk_bit_vector(Self, UInt, UInt64) -> Term raise Cvc5Error
+pub fn TermManager::mk_bit_vector_str(Self, UInt, String, base? : UInt) -> Term raise Cvc5Error
+pub fn TermManager::mk_boolean(Self, Bool) -> Term raise Cvc5Error
+pub fn TermManager::mk_const(Self, Sort, String) -> Term raise Cvc5Error
+pub fn TermManager::mk_const_array(Self, Sort, Term) -> Term raise Cvc5Error
+pub fn TermManager::mk_integer(Self, Int64) -> Term raise Cvc5Error
+pub fn TermManager::mk_integer_str(Self, String) -> Term raise Cvc5Error
+pub fn TermManager::mk_op(Self, Kind, ArrayView[UInt]) -> Op raise Cvc5Error
+pub fn TermManager::mk_real(Self, String) -> Term raise Cvc5Error
+pub fn TermManager::mk_string(Self, String) -> Term raise Cvc5Error
+pub fn TermManager::mk_term(Self, Kind, ArrayView[Term]) -> Term raise Cvc5Error
+pub fn TermManager::mk_term_from_op(Self, Op, ArrayView[Term]) -> Term raise Cvc5Error
+pub fn TermManager::mk_var(Self, Sort, String) -> Term raise Cvc5Error
+pub fn TermManager::new() -> Self raise Cvc5Error
+pub fn TermManager::real_sort(Self) -> Sort raise Cvc5Error
+pub fn TermManager::regexp_sort(Self) -> Sort raise Cvc5Error
+pub fn TermManager::rounding_mode_sort(Self) -> Sort raise Cvc5Error
+pub fn TermManager::sequence_sort(Self, Sort) -> Sort raise Cvc5Error
+pub fn TermManager::set_sort(Self, Sort) -> Sort raise Cvc5Error
+pub fn TermManager::string_sort(Self) -> Sort raise Cvc5Error
+pub fn TermManager::uninterpreted_sort(Self, String) -> Sort raise Cvc5Error
+
+// Type aliases
+
+// Traits
