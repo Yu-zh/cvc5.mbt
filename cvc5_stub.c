@@ -345,6 +345,13 @@ FFI Native *mbt_cvc5_mk_string(Native *tm, moonbit_string_t value) {
       free(escaped);
       return binding_error(tm, "Unpaired UTF-16 low surrogate");
     }
+    // SMT-LIB strings cover only the first three Unicode planes. cvc5
+    // preserves out-of-range escapes as literal text instead of rejecting them.
+    if (code > 0x2ffff) {
+      free(escaped);
+      return binding_error(
+          tm, "String literal code point exceeds the SMT-LIB limit U+2FFFF");
+    }
     int size = snprintf(escaped + used, capacity - used, "\\u{%x}",
                         (unsigned int)code);
     if (size < 0 || (size_t)size >= capacity - used)

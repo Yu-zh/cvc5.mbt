@@ -173,6 +173,8 @@ pub fn TermManager::mk_real(
 
 ///|
 /// Create a Unicode string literal, preserving embedded NULs. Backslashes are literal.
+/// Only Unicode scalar values in the SMT-LIB range U+0000–U+2FFFF are supported.
+/// Code points above U+2FFFF and unpaired UTF-16 surrogates raise Cvc5Error.
 pub fn TermManager::mk_string(
   self : TermManager,
   value : String,

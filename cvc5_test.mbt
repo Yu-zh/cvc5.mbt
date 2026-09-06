@@ -121,6 +121,7 @@ test "Unicode and embedded NUL string values" {
     value in [
       "", "hello", "月亮🌙", "a\u0000b", "\u0000", "\u0000a\u0000🌙\u0000",
       "\\u{41}", "\\u0041", "\n\"\\", "\"\"", "\r\t\u007f", "\uffff", "\u{10000}",
+      "\\u{30000}", "\\u{10ffff}",
     ] {
     assert_eq(tm.mk_string(value).get_string_value(), value)
   }
@@ -197,6 +198,34 @@ fn expect_api_error(f : () -> Unit raise @cvc5.Cvc5Error) -> Unit raise {
   } noraise {
     _ => fail("Expected a catchable cvc5 error")
   }
+}
+
+///|
+test "Unicode string literals enforce the SMT-LIB alphabet boundary" {
+  let tm = @cvc5.TermManager::new()
+  let solver = @cvc5.Solver::new(tm)
+  for value in ["\u{2fffe}", "\u{2ffff}"] {
+    let term = tm.mk_string(value)
+    assert_eq(term.get_string_value(), value)
+    assert_eq(
+      solver.simplify(tm.mk_term(StringLength, [term])).get_int64_value(),
+      1,
+    )
+  }
+  // cvc5 treats escapes outside its alphabet as literal backslash-u text.
+  // Reject the original scalar before passing its escape to the C API.
+  for
+    value in [
+      "\u{30000}", "\u{3ffff}", "\u{fffff}", "\u{100000}", "\u{10ffff}", "ok\u0000🌙\u{30000}tail",
+      "\u{30000}ok",
+    ] {
+    expect_api_error(() => ignore(tm.mk_string(value)))
+  }
+  // Rejection must leave the manager usable.
+  assert_eq(
+    tm.mk_string("a\u0000🌙\u{2ffff}").get_string_value(),
+    "a\u0000🌙\u{2ffff}",
+  )
 }
 
 ///|
