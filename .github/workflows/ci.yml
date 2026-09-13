@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cvc5
-          key: cvc5-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build.js') }}
+          key: cvc5-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build.mbtx') }}
       - name: Check and test
         run: |
           moon version --all

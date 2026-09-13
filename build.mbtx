@@ -1,0 +1,485 @@
+import {
+  "moonbitlang/async@0.21.2",
+  "moonbitlang/async@0.21.2/fs",
+  "moonbitlang/async@0.21.2/os_error",
+  "moonbitlang/async@0.21.2/process",
+  "moonbitlang/async@0.21.2/stdio",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/x@0.5.1/crypto",
+  "moonbitlang/x@0.5.1/path",
+  "moonbitlang/x@0.5.1/sys",
+}
+
+///|
+let version = "1.3.4"
+
+///|
+let revision = "f3b21c4483d3b88dc63cb7cd3e5eb092eee5e341"
+
+///|
+let artifacts : Map[String, (String, String)] = {
+  "darwin-arm64": (
+    "macOS-arm64", "cba119b4e9b82c6101f022e57825d2ad1357fa4f386a0d43ec5e61a1906f51fe",
+  ),
+  "darwin-x64": (
+    "macOS-x86_64", "ae2c82c0ca23d697210bb572c908c369e2d06fff490b1d58d2e703dc5a1818ed",
+  ),
+  "linux-arm64": (
+    "Linux-arm64", "fb9ff008525f349ae539d7a6328b1f1088a4f7b4863119a7332055bd2629a8dc",
+  ),
+  "linux-x64": (
+    "Linux-x86_64", "d33bd6622c2672af4c718b0e6759193ecd44f7ebfab42f437b767829cc63bc79",
+  ),
+}
+
+///|
+suberror BuildError {
+  BuildError(String)
+}
+
+///|
+struct Installation {
+  prefix : String
+  libdir : String
+  library : String
+}
+
+///|
+fn setting(env : Map[String, String], name : String) -> String? {
+  match env.get(name) {
+    Some("") | None => None
+    value => value
+  }
+}
+
+///|
+fn resolve(path : String) -> String {
+  @path.Path(path).resolve().to_string()
+}
+
+///|
+async fn report(message : String) -> Unit {
+  @stdio.stderr.write("[cvc5.mbt] \{message}\n")
+}
+
+///|
+// async/fs.mkdir reports EEXIST even with recursive=true. Accept existing
+// directories and retry each component so concurrent cache creation is safe.
+async fn mkdir_p(path : String) -> Unit {
+  @fs.mkdir(path) catch {
+    @os_error.OSError(_) as err if err.is_ENOENT() => {
+      mkdir_p(@path.Path(path).dirname().to_string())
+      mkdir_p(path)
+    }
+    @os_error.OSError(_) as err if err.is_EEXIST() &&
+      @fs.kind(path) == @fs.Directory => ()
+    err => raise err
+  }
+}
+
+///|
+// Moon reserves stdout for configuration JSON. Subprocess output goes to stderr.
+async fn run(
+  command : String,
+  args : Array[String],
+  env : Map[String, String],
+) -> Unit {
+  let status = @process.run(
+    command,
+    args,
+    extra_env=env,
+    stdout=@stdio.stderr,
+    stderr=@stdio.stderr,
+  )
+  if status != 0 {
+    raise BuildError("\{command} failed (exit \{status})")
+  }
+}
+
+///|
+async fn capture(
+  command : String,
+  args : Array[String],
+  env : Map[String, String],
+  cwd? : String,
+) -> String {
+  let (status, output) = @process.collect_stdout(
+    command,
+    args,
+    extra_env=env,
+    stderr=@stdio.stderr,
+    cwd=cwd.unwrap_or("."),
+  )
+  if status != 0 {
+    raise BuildError("\{command} failed (exit \{status})")
+  }
+  output.text().trim().to_owned()
+}
+
+///|
+// These strings are parsed as compiler arguments by Moon, not by a shell.
+fn quote(value : String) -> String raise {
+  let result = StringBuilder()
+  result.write_char('\'')
+  for char in value {
+    match char {
+      '\u{0}' | '\r' | '\n' =>
+        raise BuildError("Invalid newline or NUL in build path")
+      '\'' => result.write_string("'\\''")
+      _ => result.write_char(char)
+    }
+  }
+  result.write_char('\'')
+  result.to_string()
+}
+
+///|
+async fn installation(prefix : String, os : String) -> Installation {
+  let name = if os == "darwin" { "libcvc5.dylib" } else { "libcvc5.so" }
+  if @fs.exists("\{prefix}/include/cvc5/c/cvc5.h") {
+    for dir in ["lib", "lib64"] {
+      let libdir = "\{prefix}/\{dir}"
+      let library = "\{libdir}/\{name}"
+      if @fs.exists(library) {
+        return { prefix, libdir, library, }
+      }
+    }
+  }
+  raise BuildError(
+    "Expected include/cvc5/c/cvc5.h and lib[64]/\{name} in \{prefix}. " +
+    "CVC5_PREFIX must point to a shared-library installation, not the cvc5 executable.",
+  )
+}
+
+///|
+fn configuration(
+  install : Installation,
+  env : Map[String, String],
+) -> Json raise {
+  {
+    "vars": {
+      "CVC5_CC": setting(env, "CC").unwrap_or("cc"),
+      "CVC5_STUB_FLAGS": "-std=c11 -fPIC -I\{quote(resolve(install.prefix + "/include"))}",
+    },
+    // Module link_configs propagate to consumers; package-local flags do not.
+    // The shared library carries its own C++ runtime dependency. The binding
+    // uses only C symbols and needs no C++ compiler or runtime flags.
+    "link_configs": [
+      {
+        "package": "Yu-zh/cvc5.mbt",
+        "link_flags": "\{quote(install.library)} -pthread -Wl,-rpath,\{quote(install.libdir)}",
+      },
+    ],
+  }
+}
+
+///|
+fn sha256(bytes : Bytes) -> String {
+  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
+}
+
+///|
+async fn download_prebuilt(
+  staging : String,
+  artifact : (String, String),
+  env : Map[String, String],
+) -> String {
+  let (platform, digest) = artifact
+  let name = "cvc5-\{platform}-shared"
+  let archive = "\{staging}/cvc5.zip"
+  let url = "https://github.com/cvc5/cvc5/releases/download/cvc5-\{version}/\{name}.zip"
+  report("Downloading cvc5 \{version} (\{platform})")
+  run(
+    "curl",
+    [
+      "--fail", "--location", "--silent", "--show-error", "--retry", "3", "--connect-timeout",
+      "30", "--max-time", "600", "--output", archive, url,
+    ],
+    env,
+  )
+  if sha256(@fs.read_file(archive).binary()) != digest {
+    raise BuildError("SHA-256 mismatch for \{name}.zip")
+  }
+  run("unzip", ["-q", archive, "-d", staging], env)
+  "\{staging}/\{name}"
+}
+
+///|
+async fn build_source(
+  staging : String,
+  env : Map[String, String],
+  prefix : String,
+) -> String {
+  let source = match setting(env, "CVC5_SOURCE_DIR") {
+    Some(source) => resolve(source)
+    None => {
+      let source = "\{staging}/source"
+      if !@fs.exists(source) {
+        run(
+          "git",
+          [
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            "cvc5-\{version}",
+            "https://github.com/cvc5/cvc5.git",
+            source,
+          ],
+          env,
+        )
+      }
+      let actual = capture("git", ["rev-parse", "HEAD"], env, cwd=source)
+      if actual != revision {
+        raise BuildError("Unexpected cvc5 source revision: \{actual}")
+      }
+      source
+    }
+  }
+  let version_file = "\{source}/cmake/version-base.cmake"
+  let valid_version = if @fs.exists(version_file) {
+    @fs.read_file(version_file)
+    .text()
+    .contains("set(CVC5_LAST_RELEASE \"\{version}\")")
+  } else {
+    false
+  }
+  if !valid_version {
+    raise BuildError("CVC5_SOURCE_DIR must contain cvc5 \{version} sources")
+  }
+  let build = "\{staging}/build"
+  let cmake = setting(env, "CVC5_CMAKE").unwrap_or("cmake")
+  report(
+    "Building cvc5 \{version} from source; the first build can take several minutes",
+  )
+  let args = [
+    "-S", source, "-B", build, "-G", "Unix Makefiles", "-DCMAKE_BUILD_TYPE=Production",
+    "-DBUILD_SHARED_LIBS=ON", "-DENABLE_AUTO_DOWNLOAD=ON", "-DENABLE_GPL=OFF", "-DENABLE_UNIT_TESTING=OFF",
+    "-DBUILD_BINDINGS_PYTHON=OFF", "-DBUILD_BINDINGS_JAVA=OFF", "-DBUILD_GMP=ON",
+    "-DUSE_POLY=ON", "-DCMAKE_INSTALL_LIBDIR=lib",
+  ]
+  if setting(env, "CVC5_PYTHON") is Some(python) {
+    args.push("-DPython_EXECUTABLE=\{python}")
+  }
+  args.push("-DCMAKE_INSTALL_PREFIX=\{prefix}")
+  run(cmake, args, env)
+  let jobs = match setting(env, "CVC5_JOBS") {
+    Some(jobs) => jobs
+    None => {
+      let cpus = @string.parse_int(
+        capture("getconf", ["_NPROCESSORS_ONLN"], env),
+      ) catch {
+        _ => 1
+      }
+      (if cpus > 8 { 8 } else if cpus < 1 { 1 } else { cpus }).to_string()
+    }
+  }
+  guard jobs is ['1'..='9', .. rest] && rest.iter().all(c => c is ('0'..='9')) else {
+    raise BuildError("CVC5_JOBS must be a positive integer")
+  }
+  run(cmake, ["--build", build, "--parallel", jobs], env)
+  run(cmake, ["--install", build], env)
+  prefix
+}
+
+///|
+async fn cached(root : String, identity : String, os : String) -> Installation? {
+  let marker = "\{root}/complete.json"
+  if !@fs.exists(marker) {
+    return None
+  }
+  let metadata = @json.parse(@fs.read_file(marker).text())
+  guard metadata is { "identity": String(actual), .. } && actual == identity else {
+    raise BuildError("Invalid cvc5 cache metadata: \{root}")
+  }
+  Some(installation("\{root}/install", os))
+}
+
+///|
+// Stage on the cache filesystem so publishing the installation is an atomic rename.
+async fn staging_dir(cache : String) -> String {
+  for _ in 0..<100 {
+    guard @env.rand(12) is Some(random) else {
+      raise BuildError("Could not generate a temporary cvc5 directory name")
+    }
+    let path = "\{cache}/.install-\{@crypto.bytes_to_hex_string(random)}"
+    try @fs.mkdir(path, permission=0o700) catch {
+      @os_error.OSError(_) as err if err.is_EEXIST() => ()
+      err => raise err
+    } noraise {
+      _ => return path
+    }
+  }
+  raise BuildError("Could not create a temporary cvc5 directory")
+}
+
+///|
+async fn prepare(
+  env : Map[String, String],
+  module_root : String,
+) -> Installation {
+  // The script runs as Wasm; query the host rather than the script's target.
+  let os = match capture("uname", ["-s"], env) {
+    "Darwin" => "darwin"
+    "Linux" => "linux"
+    _ =>
+      raise BuildError(
+        "This binding currently supports native macOS and Linux builds.",
+      )
+  }
+  if setting(env, "CVC5_PREFIX") is Some(prefix) {
+    return installation(resolve(prefix), os)
+  }
+  let mode = setting(env, "CVC5_BUILD").unwrap_or(
+    if setting(env, "CVC5_SOURCE_DIR") is Some(_) {
+      "source"
+    } else {
+      "prebuilt"
+    },
+  )
+  if mode != "source" && mode != "prebuilt" {
+    raise BuildError("CVC5_BUILD must be prebuilt or source")
+  }
+  let arch = match capture("uname", ["-m"], env) {
+    "arm64" | "aarch64" => "arm64"
+    "x86_64" => "x64"
+    other => other
+  }
+  let platform = "\{os}-\{arch}"
+  let artifact = artifacts.get(platform)
+  if mode == "prebuilt" && artifact is None {
+    raise BuildError(
+      "No cvc5 binary for \{platform}; set CVC5_BUILD=source or CVC5_PREFIX.",
+    )
+  }
+  // Keep caches outside Moon's build directory so they survive `moon clean`.
+  let cache = resolve(
+    setting(env, "CVC5_CACHE_DIR").unwrap_or("\{module_root}/.cvc5"),
+  )
+  let identity = if mode == "prebuilt" {
+    artifact.unwrap().1
+  } else {
+    // Preserve the previous script's schema and JSON encoding for cache reuse.
+    // Option's ToJson wraps Some in an array; this protocol needs string or null.
+    fn value(key : String) -> Json {
+      match env.get(key) {
+        Some(value) => value.to_json()
+        None => Json::null()
+      }
+    }
+    let source : Json = match env.get("CVC5_SOURCE_DIR") {
+      Some("") => ""
+      Some(path) => resolve(path).to_json()
+      None => Json::null()
+    }
+    let inputs : Json = [
+      2,
+      revision,
+      source,
+      value("CC"),
+      value("CXX"),
+      value("CFLAGS"),
+      value("CXXFLAGS"),
+      value("CVC5_CMAKE"),
+      value("CVC5_PYTHON"),
+    ]
+    sha256(@utf8.encode(inputs.stringify()))
+  }
+  let root = "\{cache}/\{version}-\{platform}-\{mode}-\{identity[:16]}"
+  let prefix = "\{root}/install"
+  if cached(root, identity, os) is Some(existing) {
+    return existing
+  }
+  mkdir_p(cache)
+  let lock = root + ".lock"
+  let deadline = @env.now() + 30UL * 60 * 1000
+  for ;; {
+    try @fs.mkdir(lock) catch {
+      @os_error.OSError(_) as err if err.is_EEXIST() => {
+        if @env.now() >= deadline {
+          raise BuildError(
+            "Timed out waiting for \{lock}; check for an interrupted build.",
+          )
+        }
+        @async.sleep(1000)
+        if cached(root, identity, os) is Some(completed) {
+          return completed
+        }
+      }
+      err => raise err
+    } noraise {
+      _ => break
+    }
+  }
+  defer @fs.rmdir(lock)
+  // Source builds use stable paths so interrupted builds resume and CMake's
+  // installed rpaths refer directly to the final prefix.
+  let staging = if mode == "source" {
+    root + ".work"
+  } else {
+    staging_dir(cache)
+  }
+  defer (if mode == "prebuilt" { @fs.rmdir(staging, recursive=true) })
+  mkdir_p(staging)
+  if cached(root, identity, os) is Some(completed) {
+    return completed
+  }
+  if mode == "prebuilt" && @fs.exists(root) {
+    raise BuildError(
+      "Incomplete cvc5 installation at \{root}; move it aside and retry.",
+    )
+  }
+  let installed = if mode == "prebuilt" {
+    download_prebuilt(staging, artifact.unwrap(), env)
+  } else {
+    build_source(staging, env, prefix)
+  }
+  installation(installed, os) |> ignore
+  // Publish only a complete installation. Failed builds leave no success stamp.
+  if mode == "prebuilt" {
+    @fs.mkdir(root)
+    @fs.rename(installed, prefix)
+  }
+  let metadata : Json = { "version": version, "identity": identity }
+  @fs.write_file("\{root}/complete.json", metadata.stringify())
+  installation(prefix, os)
+}
+
+///|
+async fn main {
+  try {
+    let source = @stdio.stdin.read_all().text().trim()
+    let input : Json = if source.is_empty() { {} } else { @json.parse(source) }
+    let env = @env.get_env_vars()
+    if input is { "env": Object(overrides), .. } {
+      for key, value in overrides {
+        guard value is String(value) else {
+          raise BuildError("Prebuild environment values must be strings")
+        }
+        env[key] = value
+        // Executable lookup uses the host PATH as well as the child environment.
+        if key == "PATH" {
+          @env.set_env_var(key, value)
+        }
+      }
+    }
+    let module_root = match input {
+      { "paths": { "module_root": String(root), .. }, .. } => root
+      _ => resolve(".")
+    }
+    let install = prepare(env, module_root)
+    @stdio.stdout.write(configuration(install, env).stringify() + "\n")
+  } catch {
+    BuildError(message) => {
+      report(message)
+      @sys.exit(1)
+    }
+    err => {
+      report(err.to_string())
+      @sys.exit(1)
+    }
+  }
+}

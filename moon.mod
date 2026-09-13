@@ -26,5 +26,5 @@ preferred_target = "native"
 description = "Native MoonBit bindings for the cvc5 SMT solver"
 
 options(
-  "--moonbit-unstable-prebuild": "build.js",
+  "--moonbit-unstable-prebuild": "build.mbtx",
 )

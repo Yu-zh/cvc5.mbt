@@ -7,8 +7,8 @@ The API follows the `TermManager` / `Solver` organization of
 
 ## Quick start
 
-Install a current MoonBit toolchain, Node.js 18 or newer, a C11 compiler,
-`curl`, and `unzip`. Then, in this repository:
+Install MoonBit 0.1.20260911 or newer, a C11 compiler, `curl`, and `unzip`.
+Then, in this repository:
 
 ```sh
 moon test
@@ -16,9 +16,11 @@ moon run cmd/main
 ```
 
 The first build downloads a pinned upstream shared-library archive and checks
-its SHA-256 against the digest in `build.js`. Later builds reuse `.cvc5/` and
-work offline. No global cvc5 installation is needed. The `cvc5` executable alone
-is not sufficient: a binding also needs the headers and native libraries.
+its SHA-256 against the digest in `build.mbtx`. Moon also downloads the script's
+pinned MoonBit dependencies on first use. Later builds reuse those dependencies
+and `.cvc5/` and work offline. No global cvc5 installation is needed. The `cvc5`
+executable alone is not sufficient: a binding also needs the headers and native
+libraries.
 
 This first version follows the C API's error behavior: invalid upstream API
 calls can terminate the process. `Cvc5Error` covers binding-level checks only;
@@ -232,9 +234,12 @@ API.
 
 ## Build-system design and development
 
-`moon.mod` registers `build.js` using MoonBit's experimental
-`--moonbit-unstable-prebuild` hook. The script supplies include flags through
-`${build.CVC5_STUB_FLAGS}` and propagates libraries/rpaths through `link_configs`.
+`moon.mod` registers `build.mbtx` using MoonBit's experimental
+`--moonbit-unstable-prebuild` hook. Moon compiles the standalone script to Wasm
+and runs it with Moonrun. Its pinned `moonbitlang/async` and `moonbitlang/x`
+imports are separate from the binding's dependencies. The script supplies include
+flags through `${build.CVC5_STUB_FLAGS}` and propagates libraries/rpaths through
+`link_configs`.
 `moon.pkg` compiles only `cvc5_stub.c`; CMake handles cvc5's own source tree.
 The hook also runs when this module is used as a dependency.
 
@@ -245,6 +250,8 @@ provides a source-build example, but documents that its package pre-build hook
 must be invoked explicitly by consumers. See MoonBit's
 [prebuild protocol](https://docs.moonbitlang.com/en/latest/toolchain/moon/module.html#experimental-pre-build-config-script).
 That protocol is experimental and may require updates with future toolchains.
+
+Node.js 18 or newer is needed for the development scripts below.
 
 ```sh
 moon check --deny-warn
@@ -281,7 +288,7 @@ and [author attribution](licenses/cvc5/AUTHORS). See
 upstream source. Neither license implies endorsement by the upstream projects.
 
 The Git source distribution and Mooncakes package do not include native cvc5
-libraries. `build.js` downloads an upstream archive or builds the libraries
+libraries. `build.mbtx` downloads an upstream archive or builds the libraries
 separately; dependency caches are excluded from Git and the package.
 
 `ENABLE_GPL=OFF` disables optional GPL features, not LGPL dependencies. The
