@@ -3,7 +3,6 @@
 #include <cvc5/c/cvc5.h>
 #include <limits.h>
 #include <moonbit.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,7 +16,6 @@ typedef enum {
   N_TERM,
   N_OP,
   N_BYTES,
-  N_STRING,
   N_INTEGER,
   N_BOOLEAN,
   N_TERMS,
@@ -38,7 +36,6 @@ struct Native {
     Cvc5Term term;
     Cvc5Op op;
     moonbit_bytes_t bytes;
-    moonbit_string_t string;
     int64_t integer;
     int32_t boolean;
     struct {
@@ -73,9 +70,6 @@ static void destroy(void *object) {
     break;
   case N_BYTES:
     moonbit_decref(n->value.bytes);
-    break;
-  case N_STRING:
-    moonbit_decref(n->value.string);
     break;
   case N_TERMS:
     for (size_t i = 0; i < n->value.terms.count; ++i)
@@ -213,10 +207,6 @@ FFI moonbit_bytes_t mbt_cvc5_string(Native *n) {
   moonbit_incref(n->value.bytes);
   return n->value.bytes;
 }
-FFI moonbit_string_t mbt_cvc5_unicode(Native *n) {
-  moonbit_incref(n->value.string);
-  return n->value.string;
-}
 FFI int64_t mbt_cvc5_integer(Native *n) { return n->value.integer; }
 FFI int32_t mbt_cvc5_boolean(Native *n) { return n->value.boolean; }
 FFI int32_t mbt_cvc5_terms_length(Native *n) {
@@ -323,119 +313,16 @@ FFI Native *mbt_cvc5_mk_real(Native *tm, moonbit_bytes_t value) {
   return term_value(tm, cvc5_mk_real(manager(tm), (const char *)value));
 }
 
-FFI Native *mbt_cvc5_mk_string(Native *tm, moonbit_string_t value) {
-  size_t units = (size_t)Moonbit_array_length(value);
-  if (units > (SIZE_MAX - 1) / 10)
-    abort();
-  size_t capacity = units * 10 + 1;
-  char *escaped = array_allocate(capacity, 1);
-  size_t used = 0;
-  escaped[0] = 0;
-  // Encode every scalar, including NUL and backslash, as a Unicode escape.
-  // cvc5_mk_string_from_char32 would truncate at an embedded NUL.
-  for (size_t i = 0; i < units; ++i) {
-    uint32_t code = value[i];
-    if (code >= 0xd800 && code <= 0xdbff) {
-      if (i + 1 == units || value[i + 1] < 0xdc00 || value[i + 1] > 0xdfff) {
-        free(escaped);
-        return binding_error(tm, "Unpaired UTF-16 high surrogate");
-      }
-      code = 0x10000 + ((code - 0xd800) << 10) + (value[++i] - 0xdc00);
-    } else if (code >= 0xdc00 && code <= 0xdfff) {
-      free(escaped);
-      return binding_error(tm, "Unpaired UTF-16 low surrogate");
-    }
-    // SMT-LIB strings cover only the first three Unicode planes. cvc5
-    // preserves out-of-range escapes as literal text instead of rejecting them.
-    if (code > 0x2ffff) {
-      free(escaped);
-      return binding_error(
-          tm, "String literal code point exceeds the SMT-LIB limit U+2FFFF");
-    }
-    int size = snprintf(escaped + used, capacity - used, "\\u{%x}",
-                        (unsigned int)code);
-    if (size < 0 || (size_t)size >= capacity - used)
-      abort();
-    used += (size_t)size;
-  }
-  Cvc5Term term = cvc5_mk_string(manager(tm), escaped, true);
-  free(escaped);
-  return term_value(tm, term);
-}
-
-// Decode cvc5's SMT-LIB string-literal display: doubled quotes and Unicode
-// escapes. The C API's UTF-32 getter has no length, so it cannot distinguish
-// an embedded NUL from the end. A NULL output performs the sizing pass.
-static int32_t decode_string_literal(const char *text, uint16_t *output) {
-  size_t size = strlen(text), used = 0;
-  if (size < 2 || text[0] != '"' || text[size - 1] != '"')
-    return -1;
-  for (size_t i = 1; i < size - 1;) {
-    uint32_t code = (unsigned char)text[i++];
-    if (code == '"') {
-      if (i >= size - 1 || text[i++] != '"')
-        return -1;
-    } else if (code == '\\') {
-      if (i >= size - 1 || text[i++] != 'u')
-        return -1;
-      bool braced = i < size - 1 && text[i] == '{';
-      if (braced)
-        ++i;
-      unsigned int digits = 0;
-      code = 0;
-      while (i < size - 1 && (braced ? text[i] != '}' : digits < 4)) {
-        unsigned char c = (unsigned char)text[i++];
-        unsigned int digit;
-        if (c >= '0' && c <= '9')
-          digit = c - '0';
-        else if (c >= 'a' && c <= 'f')
-          digit = c - 'a' + 10;
-        else if (c >= 'A' && c <= 'F')
-          digit = c - 'A' + 10;
-        else
-          return -1;
-        if (++digits > 6)
-          return -1;
-        code = code * 16 + digit;
-      }
-      if (braced) {
-        if (!digits || i >= size - 1 || text[i++] != '}')
-          return -1;
-      } else if (digits != 4)
-        return -1;
-    } else if (code > 0x7f) {
-      // The pinned cvc5 printer escapes non-ASCII characters.
-      return -1;
-    }
-    if (code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff))
-      return -1;
-    size_t width = code > 0xffff ? 2 : 1;
-    if (used > INT32_MAX - width)
-      return -1;
-    if (output) {
-      if (width == 2) {
-        output[used] = (uint16_t)(0xd800 + ((code - 0x10000) >> 10));
-        output[used + 1] = (uint16_t)(0xdc00 + ((code - 0x10000) & 0x3ff));
-      } else
-        output[used] = (uint16_t)code;
-    }
-    used += width;
-  }
-  return (int32_t)used;
+FFI Native *mbt_cvc5_mk_string(Native *tm, moonbit_bytes_t escaped) {
+  // MoonBit has validated the scalars and encoded them as ASCII escapes.
+  return term_value(
+      tm, cvc5_mk_string(manager(tm), (const char *)escaped, true));
 }
 
 FFI Native *mbt_cvc5_term_string_value(Native *n) {
   if (!cvc5_term_is_string_value(n->value.term))
     return binding_error(n, "Term is not a string literal");
-  const char *text = cvc5_term_to_string(n->value.term);
-  int32_t length = decode_string_literal(text, NULL);
-  if (length < 0)
-    return binding_error(n, "Cannot decode cvc5 string literal");
-  Native *result = allocate(N_STRING, n);
-  result->value.string = moonbit_make_string(length, 0);
-  if (decode_string_literal(text, result->value.string) != length)
-    abort();
-  return result;
+  return text_value(n, cvc5_term_to_string(n->value.term));
 }
 
 FFI Native *mbt_cvc5_mk_bit_vector(Native *tm, uint32_t width, uint64_t value) {

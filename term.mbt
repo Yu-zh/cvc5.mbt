@@ -73,7 +73,7 @@ pub fn Term::get_real_value(self : Term) -> String raise Cvc5Error {
 ///|
 /// Read the literal Unicode contents, without SMT-LIB quotes or escapes.
 pub fn Term::get_string_value(self : Term) -> String raise Cvc5Error {
-  ffi_unicode(checked(ffi_term_string_value(self.native)))
+  decode_string_literal(ffi_string(checked(ffi_term_string_value(self.native))))
 }
 
 ///|

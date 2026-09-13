@@ -182,9 +182,9 @@ NUL characters because the C API accepts them as NUL-terminated strings. The
 binding rejects those inputs instead of truncating them. **String literals**
 created with `mk_string` preserve NULs and Unicode scalar values within the
 SMT-LIB alphabet, U+0000–U+2FFFF. Code points above U+2FFFF and unpaired UTF-16
-surrogates raise `Cvc5Error` instead of silently changing the string. The shim
-uses SMT-LIB Unicode escapes to work around the C API's lack of length-bearing
-string access.
+surrogates raise `Cvc5Error` instead of silently changing the string. MoonBit
+encodes and decodes SMT-LIB Unicode escapes, passing `Bytes` across the FFI
+boundary to work around the C API's lack of length-bearing string access.
 
 This is an initial binding, not full cvc5-rs API parity. Dedicated datatype,
 floating-point, finite-field, and collection-value constructors, SMT-LIB

@@ -179,7 +179,7 @@ pub fn TermManager::mk_string(
   self : TermManager,
   value : String,
 ) -> Term raise Cvc5Error {
-  { native: checked(ffi_mk_string(self.native, value)), }
+  { native: checked(ffi_mk_string(self.native, encode_string_literal(value))), }
 }
 
 ///|

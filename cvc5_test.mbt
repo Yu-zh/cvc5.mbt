@@ -229,6 +229,18 @@ test "Unicode string literals enforce the SMT-LIB alphabet boundary" {
 }
 
 ///|
+test "string literals reject unpaired UTF-16 surrogates" {
+  let tm = @cvc5.TermManager::new()
+  // Construct malformed UTF-16 deliberately; ordinary string literals are valid.
+  let high = (0xd800).unsafe_to_char()
+  let low = (0xdc00).unsafe_to_char()
+  for chars in [[high], [low], [high, 'a'], ['a', low], [high, high]] {
+    expect_api_error(() => ignore(tm.mk_string(String::from_array(chars))))
+  }
+  assert_eq(tm.mk_string("a\u0000🌙").get_string_value(), "a\u0000🌙")
+}
+
+///|
 test "binding-level checks reject unsafe C arguments" {
   let tm = @cvc5.TermManager::new()
   let solver = @cvc5.Solver::new(tm)

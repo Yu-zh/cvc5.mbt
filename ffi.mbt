@@ -115,11 +115,7 @@ extern "c" fn ffi_mk_real(tm : Native, value : Bytes) -> Native = "mbt_cvc5_mk_r
 
 ///|
 #borrow(tm, value)
-extern "c" fn ffi_mk_string(tm : Native, value : String) -> Native = "mbt_cvc5_mk_string"
-
-///|
-#borrow(native)
-extern "c" fn ffi_unicode(native : Native) -> String = "mbt_cvc5_unicode"
+extern "c" fn ffi_mk_string(tm : Native, value : Bytes) -> Native = "mbt_cvc5_mk_string"
 
 ///|
 #borrow(tm)
