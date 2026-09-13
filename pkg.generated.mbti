@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/cvc5"
+package "Yu-zh/cvc5.mbt"
 
 import {
   "moonbitlang/core/debug",

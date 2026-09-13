@@ -1,5 +1,5 @@
 import {
-  "moonbitlang/cvc5",
+  "Yu-zh/cvc5.mbt" @cvc5,
 }
 
 supported_targets = "native"

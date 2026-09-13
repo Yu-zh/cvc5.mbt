@@ -5,5 +5,5 @@ version = "0.0.0"
 preferred_target = "native"
 
 import {
-  "moonbitlang/cvc5@0.1.0",
+  "Yu-zh/cvc5.mbt@0.1.0",
 }

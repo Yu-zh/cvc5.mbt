@@ -1,4 +1,4 @@
-# moonbitlang/cvc5
+# Yu-zh/cvc5.mbt
 
 Native MoonBit bindings for [cvc5](https://cvc5.github.io/), pinned to **1.3.4**,
 using its public C API and a C11 shim.
@@ -30,19 +30,24 @@ cross-compilation, and static linking are not supported by this version.
 Linux binaries require the glibc and C++ runtime supported by the upstream
 archive; use a source build on systems where that archive is incompatible.
 
-For a consuming project, add `moonbitlang/cvc5` as a module dependency when it
-is published, then import it in `moon.pkg`:
+For a consuming project, add the module dependency:
+
+```sh
+moon add Yu-zh/cvc5.mbt
+```
+
+Then import it in `moon.pkg` with the alias `cvc5`:
 
 ```moonbit nocheck
 ///|
 import {
-  "moonbitlang/cvc5",
+  "Yu-zh/cvc5.mbt" @cvc5,
 }
 ```
 
 Build that project with `--target native` or set `preferred_target = "native"`
 in its `moon.mod`. There are no consumer-side compiler or linker settings.
-The local `tests/consumer` workspace demonstrates this before publication:
+The local `tests/consumer` workspace demonstrates dependency usage:
 
 ```sh
 moon -C tests/consumer run .

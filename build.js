@@ -57,7 +57,7 @@ function configuration(install, env) {
       CVC5_STUB_FLAGS: `-std=c11 -fPIC -I${quote(path.join(install.prefix, 'include'))}`,
     },
     link_configs: [{
-      package: 'moonbitlang/cvc5',
+      package: 'Yu-zh/cvc5.mbt',
       // Module prebuild link_configs propagate to consumers. Package-local
       // cc-link-flags alone are insufficient for a reusable native dependency.
       // The shared cvc5 library carries its own C++ runtime dependency. The

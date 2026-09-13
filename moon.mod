@@ -9,7 +9,7 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "moonbitlang/cvc5"
+name = "Yu-zh/cvc5.mbt"
 
 version = "0.1.0"
 
