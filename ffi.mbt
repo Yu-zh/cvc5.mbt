@@ -303,6 +303,10 @@ extern "c" fn ffi_get_unsat_core(native : Native) -> Native = "mbt_cvc5_get_unsa
 
 ///|
 #borrow(native)
+extern "c" fn ffi_get_proof_cpc(native : Native) -> Native = "mbt_cvc5_get_proof_cpc"
+
+///|
+#borrow(native)
 extern "c" fn ffi_version(native : Native) -> Native = "mbt_cvc5_version"
 
 ///|

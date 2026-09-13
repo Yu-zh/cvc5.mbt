@@ -537,6 +537,24 @@ FFI Native *mbt_cvc5_get_unsat_core(Native *n) {
   const Cvc5Term *terms = cvc5_get_unsat_core(n->value.solver, &count);
   return term_array(n, terms, count);
 }
+FFI Native *mbt_cvc5_get_proof_cpc(Native *n) {
+  size_t count;
+  const Cvc5Proof *proofs =
+      cvc5_get_proof(n->value.solver, CVC5_PROOF_COMPONENT_FULL, &count);
+  // FULL supplies one refutation. Release all owned handles on either path;
+  // the array itself is borrowed C API scratch storage.
+  if (count != 1) {
+    for (size_t i = 0; i < count; ++i)
+      cvc5_proof_release(proofs[i]);
+    return binding_error(n, "Expected a single full proof");
+  }
+  Native *result = text_value(
+      n, cvc5_proof_to_string(n->value.solver, proofs[0], CVC5_PROOF_FORMAT_CPC,
+                             0, NULL, NULL));
+  // text_value copies the temporary string before releasing the proof.
+  cvc5_proof_release(proofs[0]);
+  return result;
+}
 FFI Native *mbt_cvc5_get_value(Native *n, Native *term) {
   if (!same_manager(n, term))
     return binding_error(n, different_managers);

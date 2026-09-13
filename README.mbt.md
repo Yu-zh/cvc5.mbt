@@ -146,7 +146,7 @@ see [License](#license) and [third-party notices](THIRD_PARTY_NOTICES.md).
   retains its upstream arity and sort requirements.
 - `Solver` supports options and logics, assertions, satisfiability checks,
   temporary assumptions, incremental scopes, simplification, models, and
-  unsat cores.
+  unsat cores, plus full proofs in Cooperating Proof Calculus (CPC) format.
 - `Term` supports children, sorts, symbols, substitution, SMT-LIB display, and
   typed literal extraction. Arbitrary integers and exact rationals can be
   exchanged as strings. String literals preserve embedded NULs and Unicode
@@ -163,6 +163,44 @@ finalizers. Each native value is released before its retained term manager.
 Solver results are copied into lifetime-independent snapshots, and temporary
 C API strings and arrays are copied before their storage can be reused.
 Every non-primitive FFI parameter has an explicit borrowing annotation.
+
+### CPC proof retrieval
+
+Enable `produce-proofs` before solving, then call `get_proof_cpc()` immediately
+after an `Unsat` result from `check_sat()` or `check_sat_assuming()`. It returns
+the full refutation as an owned `String`, which remains valid after further
+solver calls or destruction of the solver. Retrieve it before changing assertions
+or scopes: cvc5 1.3.4 can abort if retrieval follows `reset_assertions()`.
+Calling it without proof production enabled or outside the unsatisfiable solver
+state is also a fatal upstream API error.
+
+```mbt check
+///|
+test "README: retrieve a CPC proof" {
+  let tm = @cvc5.TermManager::new()
+  let solver = @cvc5.Solver::new(tm)
+  solver.set_logic("QF_UF")
+  solver.set_option("produce-proofs", "true")
+  solver.set_option("proof-format-mode", "cpc")
+  solver.set_option("proof-granularity", "dsl-rewrite")
+  let p = tm.mk_const(tm.boolean_sort(), "p")
+  solver.assert_formula(p)
+  solver.assert_formula(tm.mk_term(Not, [p]))
+  assert_true(solver.check_sat() is Unsat)
+  let proof = solver.get_proof_cpc()
+  assert_true(proof.contains("false :rule contra"))
+}
+```
+
+`get_proof_cpc()` explicitly selects CPC, regardless of `proof-format-mode`.
+Other proof options still apply; the optional `proof-granularity=dsl-rewrite`
+setting gives more detailed rewrite steps. Set these options before solving.
+No `dump-proofs` option is needed for API retrieval.
+
+CPC proofs can be checked with [Ethos](https://github.com/cvc5/ethos).
+Unsupported proof rules can appear as `trust` steps, causing Ethos to report
+`incomplete` rather than `correct`; more detail does not guarantee a proof without
+trust steps. See the [cvc5 CPC documentation](https://cvc5.github.io/docs/cvc5-1.3.4/proofs/output_cpc.html).
 
 ### Error handling
 
@@ -188,8 +226,9 @@ boundary to work around the C API's lack of length-bearing string access.
 
 This is an initial binding, not full cvc5-rs API parity. Dedicated datatype,
 floating-point, finite-field, and collection-value constructors, SMT-LIB
-parsing, SyGuS, proofs, and statistics are not wrapped yet. No binding to cvc5's
-parser library is required for the current API.
+parsing, SyGuS, proof-node inspection, other proof formats, and statistics are
+not wrapped yet. No binding to cvc5's parser library is required for the current
+API.
 
 ## Build-system design and development
 

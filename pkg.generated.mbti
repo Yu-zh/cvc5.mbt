@@ -351,6 +351,7 @@ pub fn Solver::check_sat(Self) -> SatResult raise Cvc5Error
 pub fn Solver::check_sat_assuming(Self, ArrayView[Term]) -> SatResult raise Cvc5Error
 pub fn Solver::get_assertions(Self) -> Array[Term] raise Cvc5Error
 pub fn Solver::get_option(Self, String) -> String raise Cvc5Error
+pub fn Solver::get_proof_cpc(Self) -> String raise Cvc5Error
 pub fn Solver::get_unsat_core(Self) -> Array[Term] raise Cvc5Error
 pub fn Solver::get_value(Self, Term) -> Term raise Cvc5Error
 pub fn Solver::get_values(Self, ArrayView[Term]) -> Array[Term] raise Cvc5Error

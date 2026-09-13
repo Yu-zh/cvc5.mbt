@@ -83,6 +83,22 @@ pub fn Solver::get_unsat_core(self : Solver) -> Array[Term] raise Cvc5Error {
 }
 
 ///|
+/// Return the full refutation in Cooperating Proof Calculus (CPC) format.
+/// Enable "produce-proofs" before solving and call immediately after an Unsat
+/// result from `check_sat` or `check_sat_assuming`, before changing assertions
+/// or scopes. Invalid upstream solver states terminate the process; cvc5 1.3.4
+/// can abort if a proof is requested after `reset_assertions`.
+///
+/// Always selects CPC, regardless of "proof-format-mode". Configure other proof
+/// options before solving, such as "proof-granularity" = "dsl-rewrite" for more
+/// detailed rewrite steps. Unsupported rules may still appear as trust steps.
+/// The returned string owns its storage and remains valid after later solver
+/// operations or destruction of the solver.
+pub fn Solver::get_proof_cpc(self : Solver) -> String raise Cvc5Error {
+  native_string(ffi_get_proof_cpc(self.native))
+}
+
+///|
 /// Evaluate a term in the current model. Requires "produce-models" and Sat.
 pub fn Solver::get_value(self : Solver, term : Term) -> Term raise Cvc5Error {
   { native: checked(ffi_get_value(self.native, term.native)), }

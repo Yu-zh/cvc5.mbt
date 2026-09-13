@@ -1,4 +1,4 @@
-// Run only through scripts/test-c-api-errors.js. Each case must exit inside
+// Run only through scripts/test-c-api-errors.js. Each case must terminate inside
 // the upstream C API; the script isolates cases in separate child processes.
 
 ///|
@@ -69,4 +69,40 @@ test "model before solving" {
 ///|
 test "pop without a scope" {
   @cvc5.Solver::new(@cvc5.TermManager::new()).pop()
+}
+
+///|
+test "proofs not enabled" {
+  let tm = @cvc5.TermManager::new()
+  let solver = @cvc5.Solver::new(tm)
+  solver.assert_formula(tm.mk_boolean(false))
+  assert_true(solver.check_sat() is Unsat)
+  ignore(solver.get_proof_cpc())
+}
+
+///|
+test "proof before solving" {
+  let solver = @cvc5.Solver::new(@cvc5.TermManager::new())
+  solver.set_option("produce-proofs", "true")
+  ignore(solver.get_proof_cpc())
+}
+
+///|
+test "proof after sat" {
+  let solver = @cvc5.Solver::new(@cvc5.TermManager::new())
+  solver.set_option("produce-proofs", "true")
+  assert_true(solver.check_sat() is Sat)
+  ignore(solver.get_proof_cpc())
+}
+
+///|
+test "proof after resetting assertions" {
+  let tm = @cvc5.TermManager::new()
+  let solver = @cvc5.Solver::new(tm)
+  solver.set_option("produce-proofs", "true")
+  solver.set_option("incremental", "true")
+  solver.assert_formula(tm.mk_boolean(false))
+  assert_true(solver.check_sat() is Unsat)
+  solver.reset_assertions()
+  ignore(solver.get_proof_cpc())
 }
